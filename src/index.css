@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
+  line-height: 1.6;
+  direction: rtl;
+  font-variant-numeric: lining-nums;
+}
+
+/* فرض استخدام الأرقام العربية (1234567890) */
+* {
+  font-variant-numeric: lining-nums;
+}
+
+.arabic-numerals {
+  font-variant-numeric: lining-nums;
+}
+
+/* تخصيص أنماط الطباعة */
+@media print {
+  body, * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+
+  .printable-area {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .printable-area .shadow-md {
+    box-shadow: none !important;
+  }
+
+  .printable-area .rounded-lg {
+    border-radius: 0 !important;
+  }
+
+  .printable-area .p-6 {
+    padding: 1rem 0 !important;
+  }
+  
+  @page {
+    size: A4;
+    margin: 2cm;
+  }
+}
+
+/* تحسين عرض النصوص العربية */
+.arabic-text {
+  font-feature-settings: "liga" 1, "calt" 1, "kern" 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* تحسين التفاعلات */
+.hover-lift {
+  transition: all 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
