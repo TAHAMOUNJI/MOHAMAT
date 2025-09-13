@@ -1,0 +1,21 @@
+{
+  "clients": [
+    {
+      "firstName": "طه منجي",
+      "lastName": "عباس",
+      "fatherName": "عبد القادر",
+      "motherFirstName": "نصيرة",
+      "motherLastName": "خذير",
+      "birthDate": "1994-06-21",
+      "birthPlace": "الجلفة",
+      "documentType": "id_card",
+      "documentNumber": "17521568",
+      "documentIssueDate": "2018-09-30",
+      "wilaya": "الجلفة",
+      "municipality": "الجلفة",
+      "phoneNumber": "0555815080",
+      "id": "1757767991451"
+    }
+  ],
+  "cases": []
+}

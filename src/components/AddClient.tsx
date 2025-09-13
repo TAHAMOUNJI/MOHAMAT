@@ -4,7 +4,7 @@ import { algeriaData } from '../data/algeriaData';
 import { parseDateFromInput } from '../utils/dateUtils';
 
 interface AddClientProps {
-  onAddClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onAddClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Client | undefined>;
   onSaveAndAddCase?: (clientId: string) => void;
 }
 
@@ -33,7 +33,7 @@ const AddClient: React.FC<AddClientProps> = ({ onAddClient, onSaveAndAddCase }) 
   const [selectedOppositionWilaya, setSelectedOppositionWilaya] = useState('');
   const oppositionMunicipalities = algeriaData.find(w => w.code === selectedOppositionWilaya)?.communes || [];
 
-  const handleSubmit = (e: React.FormEvent, saveAndAddCase: boolean = false) => {
+  const handleSubmit = async (e: React.FormEvent, saveAndAddCase: boolean = false) => {
     e.preventDefault();
     
     const clientData = {
@@ -44,18 +44,17 @@ const AddClient: React.FC<AddClientProps> = ({ onAddClient, onSaveAndAddCase }) 
       municipality: municipalities.find(m => m.name === formData.municipality)?.ar_name || formData.municipality,
       opposition: withOpposition && formData.opposition ? {
         ...formData.opposition,
-        birthDate: parseDateFromInput(formData.opposition.birthDate),
-        documentIssueDate: parseDateFromInput(formData.opposition.documentIssueDate),
+        birthDate: parseDateFromInput(formData.opposition.birthDate || ''),
+        documentIssueDate: parseDateFromInput(formData.opposition.documentIssueDate || ''),
         wilaya: algeriaData.find(w => w.code === formData.opposition.wilaya)?.ar_name || formData.opposition.wilaya,
         municipality: oppositionMunicipalities.find(m => m.name === formData.opposition.municipality)?.ar_name || formData.opposition.municipality,
       } : undefined,
     };
     
-    onAddClient(clientData);
+    const newClient = await onAddClient(clientData);
     
-    if (saveAndAddCase && onSaveAndAddCase) {
-      // This is a placeholder. In a real app, you'd get the new client's ID after creation.
-      onSaveAndAddCase('new-client-id');
+    if (saveAndAddCase && onSaveAndAddCase && newClient) {
+      onSaveAndAddCase(newClient.id);
     }
     
     // Reset form
@@ -92,18 +91,18 @@ const AddClient: React.FC<AddClientProps> = ({ onAddClient, onSaveAndAddCase }) 
     setFormData(prev => ({
       ...prev,
       opposition: {
-        ...(prev.opposition as Opposition),
+        ...(prev.opposition || {}),
         [name]: value,
-      },
+      } as Opposition,
     }));
     if (name === 'wilaya') {
       setSelectedOppositionWilaya(value);
       setFormData(prev => ({
         ...prev,
         opposition: {
-          ...(prev.opposition as Opposition),
+          ...(prev.opposition || {}),
           municipality: '',
-        },
+        } as Opposition,
       }));
     }
   };

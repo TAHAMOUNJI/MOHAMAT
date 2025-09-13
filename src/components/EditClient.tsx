@@ -18,26 +18,27 @@ const EditClient: React.FC<EditClientProps> = ({ client, onClose, onUpdateClient
 
   useEffect(() => {
     if (client) {
+      const clientWilaya = algeriaData.find(w => w.ar_name === client.wilaya);
+      const oppositionWilaya = client.opposition ? algeriaData.find(w => w.ar_name === client.opposition.wilaya) : undefined;
+
       setFormData({
         ...client,
         birthDate: formatDateForInput(client.birthDate),
         documentIssueDate: formatDateForInput(client.documentIssueDate),
+        wilaya: clientWilaya?.code || '',
         opposition: client.opposition ? {
           ...client.opposition,
           birthDate: formatDateForInput(client.opposition.birthDate),
           documentIssueDate: formatDateForInput(client.opposition.documentIssueDate),
+          wilaya: oppositionWilaya?.code || '',
         } : undefined,
       });
       setWithOpposition(!!client.opposition);
-      const clientWilaya = algeriaData.find(w => w.ar_name === client.wilaya);
       if (clientWilaya) {
         setSelectedWilaya(clientWilaya.code);
       }
-      if (client.opposition) {
-        const oppositionWilaya = algeriaData.find(w => w.ar_name === client.opposition.wilaya);
-        if (oppositionWilaya) {
-          setSelectedOppositionWilaya(oppositionWilaya.code);
-        }
+      if (oppositionWilaya) {
+        setSelectedOppositionWilaya(oppositionWilaya.code);
       }
     }
   }, [client]);
@@ -50,14 +51,23 @@ const EditClient: React.FC<EditClientProps> = ({ client, onClose, onUpdateClient
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData) {
+        const wilayaName = algeriaData.find(w => w.code === formData.wilaya)?.ar_name || formData.wilaya;
+        const municipalityName = municipalities.find(m => m.name === formData.municipality)?.ar_name || formData.municipality;
+        const oppositionWilayaName = algeriaData.find(w => w.code === formData.opposition?.wilaya)?.ar_name || formData.opposition?.wilaya;
+        const oppositionMunicipalityName = oppositionMunicipalities.find(m => m.name === formData.opposition?.municipality)?.ar_name || formData.opposition?.municipality;
+
         onUpdateClient({ 
             ...formData, 
             birthDate: parseDateFromInput(formData.birthDate),
             documentIssueDate: parseDateFromInput(formData.documentIssueDate),
+            wilaya: wilayaName,
+            municipality: municipalityName,
             opposition: withOpposition && formData.opposition ? {
               ...formData.opposition,
               birthDate: parseDateFromInput(formData.opposition.birthDate),
               documentIssueDate: parseDateFromInput(formData.opposition.documentIssueDate),
+              wilaya: oppositionWilayaName,
+              municipality: oppositionMunicipalityName,
             } : undefined,
             updatedAt: new Date().toISOString() 
         });
@@ -69,8 +79,7 @@ const EditClient: React.FC<EditClientProps> = ({ client, onClose, onUpdateClient
     const { name, value } = e.target;
     setFormData(prev => prev ? { ...prev, [name]: value } : null);
     if (name === 'wilaya') {
-        const wilayaCode = algeriaData.find(w => w.ar_name === value)?.code || '';
-        setSelectedWilaya(wilayaCode);
+        setSelectedWilaya(value);
         setFormData(prev => prev ? { ...prev, municipality: '' } : null);
     }
   };
@@ -80,19 +89,18 @@ const EditClient: React.FC<EditClientProps> = ({ client, onClose, onUpdateClient
     setFormData(prev => prev ? {
       ...prev,
       opposition: {
-        ...(prev.opposition as Opposition),
+        ...(prev.opposition || {}),
         [name]: value,
-      },
+      } as Opposition,
     } : null);
     if (name === 'wilaya') {
-      const wilayaCode = algeriaData.find(w => w.ar_name === value)?.code || '';
-      setSelectedOppositionWilaya(wilayaCode);
+      setSelectedOppositionWilaya(value);
       setFormData(prev => prev ? {
         ...prev,
         opposition: {
-          ...(prev.opposition as Opposition),
+          ...(prev.opposition || {}),
           municipality: '',
-        },
+        } as Opposition,
       } : null);
     }
   };
@@ -181,7 +189,7 @@ const EditClient: React.FC<EditClientProps> = ({ client, onClose, onUpdateClient
                 >
                     <option value="">اختر الولاية</option>
                     {algeriaData.map((wilaya) => (
-                        <option key={wilaya.code} value={wilaya.ar_name}>{wilaya.ar_name}</option>
+                        <option key={wilaya.code} value={wilaya.code}>{wilaya.ar_name}</option>
                     ))}
                 </select>
             </div>
@@ -197,7 +205,7 @@ const EditClient: React.FC<EditClientProps> = ({ client, onClose, onUpdateClient
               >
                 <option value="">اختر البلدية</option>
                 {municipalities.map((municipality) => (
-                  <option key={municipality.name} value={municipality.ar_name}>
+                  <option key={municipality.name} value={municipality.name}>
                     {municipality.ar_name}
                   </option>
                 ))}
@@ -402,7 +410,7 @@ const EditClient: React.FC<EditClientProps> = ({ client, onClose, onUpdateClient
                 >
                   <option value="">اختر الولاية</option>
                   {algeriaData.map((wilaya) => (
-                    <option key={wilaya.code} value={wilaya.ar_name}>{wilaya.ar_name}</option>
+                    <option key={wilaya.code} value={wilaya.code}>{wilaya.ar_name}</option>
                   ))}
                 </select>
               </div>
@@ -420,7 +428,7 @@ const EditClient: React.FC<EditClientProps> = ({ client, onClose, onUpdateClient
                 >
                   <option value="">اختر البلدية</option>
                   {oppositionMunicipalities.map((municipality) => (
-                    <option key={municipality.name} value={municipality.ar_name}>
+                    <option key={municipality.name} value={municipality.name}>
                       {municipality.ar_name}
                     </option>
                   ))}

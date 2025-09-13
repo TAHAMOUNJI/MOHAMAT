@@ -83,10 +83,10 @@ export interface LegalText {
   officialGazetteNumber?: string;
   officialGazetteUrl?: string;
   tags: string[];
-  isActive: boolean;
+  isActive?: boolean;
   amendments?: Amendment[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Amendment {
@@ -125,7 +125,8 @@ export type LegalCategory =
   | 'family_law'
   | 'labor_law'
   | 'tax_law'
-  | 'procedural_law';
+  | 'procedural_law'
+  | 'uncategorized';
 
 export interface SearchFilters {
   category?: LegalCategory;
@@ -144,4 +145,14 @@ export interface Notification {
   isRead: boolean;
   createdAt: string;
   relatedLegalTextId?: string;
+}
+
+export interface ListDirectoryFileFilteringOptions {
+  respect_gemini_ignore?: boolean;
+  respect_git_ignore?: boolean;
+}
+
+export interface ReadManyFilesFileFilteringOptions {
+  respect_gemini_ignore?: boolean;
+  respect_git_ignore?: boolean;
 }
