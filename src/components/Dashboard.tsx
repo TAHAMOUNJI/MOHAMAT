@@ -1,13 +1,18 @@
 import React from 'react';
-import { Users, Scale, Calendar, FileText } from 'lucide-react';
+import { Users, Scale, Calendar, FileText, BookOpen, Star } from 'lucide-react';
 import { formatDateShort } from '../utils/dateUtils';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import QuickActions from './QuickActions';
 
 interface DashboardProps {
   clients: any[];
   cases: any[];
+  onPageChange: (page: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ clients, cases }) => {
+const Dashboard: React.FC<DashboardProps> = ({ clients, cases, onPageChange }) => {
+  const [favorites] = useLocalStorage<string[]>('legal_favorites', []);
+  
   const upcomingSessions = cases.filter(c => c.sessionDate && new Date(c.sessionDate) > new Date());
   
   const stats = [
@@ -34,6 +39,18 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, cases }) => {
       value: cases.filter(c => !c.sessionDate || new Date(c.sessionDate) > new Date()).length,
       icon: FileText,
       color: 'bg-purple-500'
+    },
+    {
+      title: 'القوانين المفضلة',
+      value: favorites.length,
+      icon: Star,
+      color: 'bg-yellow-500'
+    },
+    {
+      title: 'النصوص القانونية',
+      value: 150, // This would be dynamic in real app
+      icon: BookOpen,
+      color: 'bg-indigo-500'
     }
   ];
 
@@ -62,6 +79,11 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, cases }) => {
             </div>
           );
         })}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-8">
+        <QuickActions onPageChange={onPageChange} />
       </div>
 
       {/* الجلسات القادمة */}

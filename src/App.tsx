@@ -17,6 +17,9 @@ import PrintView from './components/PrintView';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
 import CasesList from './components/CasesList';
+import LegalTexts from './components/LegalTexts';
+import OfflineIndicator from './components/OfflineIndicator';
+import KeyboardShortcuts from './components/KeyboardShortcuts';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -137,7 +140,7 @@ function App() {
 
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard clients={clients} cases={cases} />;
+        return <Dashboard clients={clients} cases={cases} onPageChange={handlePageChange} />;
       
       case 'add-client':
         return <AddClient onAddClient={handleAddClient} />;
@@ -156,6 +159,9 @@ function App() {
 
       case 'cases':
         return <CasesList cases={cases} clients={clients} onViewClient={handleViewClient} />;
+      
+      case 'legal-texts':
+        return <LegalTexts />;
       
       case 'client-details':
         if (!clientToView) return <div className="p-6">لم يتم العثور على الموكل.</div>;
@@ -220,6 +226,9 @@ function App() {
       )}
 
             <PrintView client={clientToPrint} cases={clientToPrint ? cases.filter(c => c.clientId === clientToPrint.id) : []} />
+      
+      <OfflineIndicator />
+      <KeyboardShortcuts onPageChange={handlePageChange} />
     </div>
   );
 }

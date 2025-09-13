@@ -6,7 +6,8 @@ import {
   Settings, 
   Download,
   FileText,
-  Scale
+  Scale,
+  BookOpen
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -20,6 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
     { id: 'add-client', label: 'إضافة موكل', icon: UserPlus },
     { id: 'clients', label: 'قائمة الموكلين', icon: Users },
     { id: 'cases', label: 'القضايا', icon: Scale },
+    { id: 'legal-texts', label: 'القوانين', icon: BookOpen },
     { id: 'reports', label: 'التقارير', icon: FileText },
     { id: 'export', label: 'التصدير', icon: Download },
     { id: 'settings', label: 'الإعدادات', icon: Settings },

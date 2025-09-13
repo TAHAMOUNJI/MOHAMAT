@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatDateToArabic } from '../utils/dateUtils';
+import NotificationCenter from './NotificationCenter';
 
 const Header: React.FC = () => {
   const currentDate = formatDateToArabic(new Date());
@@ -20,7 +21,8 @@ const Header: React.FC = () => {
           </div>
         </div>
         
-        <div className="text-left">
+        <div className="text-left flex items-center gap-4">
+          <NotificationCenter />
           <div className="bg-slate-100 px-4 py-2 rounded-lg">
             <p className="text-slate-600 text-sm font-medium">التاريخ</p>
             <p className="text-slate-800 font-bold">{currentDate}</p>
