@@ -6,7 +6,7 @@ import { sampleLegalTexts } from '../data/sampleLegalTexts';
 import { formatDateLong } from '../utils/dateUtils';
 import { useTheme } from '../context/ThemeContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { default_api } from '../api';
+import { default_api, getLegalTexts } from '../api';
 
 const LegalTexts: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -21,26 +21,18 @@ const LegalTexts: React.FC = () => {
   const [onlineResults, setOnlineResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [legalTexts, setLegalTexts] = useLocalStorage<LegalText[]>('legal_texts', sampleLegalTexts);
-  const [latestGazettes, setLatestGazettes] = useState<any[]>([]);
+  const [scrapedTexts, setScrapedTexts] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchLatestGazettes = async () => {
-      const result = await default_api.web_fetch({ prompt: "fetch https://www.joradp.dz/" });
-      const html = result.output;
-      if (html) {
-        const gazetteMatches = html.matchAll(/الجريدة الرسمية رقم (\d+) الصادرة في ([^<]+)/g);
-        const gazettes = Array.from(gazetteMatches).map(match => ({
-          number: match[1],
-          date: match[2],
-          link: `https://www.joradp.dz/FTP/JO-ARABE/${new Date().getFullYear()}/J${match[1]}.pdf`
-        }));
-        setLatestGazettes(gazettes);
-      }
+    const fetchLegalTexts = async () => {
+      const texts = await getLegalTexts();
+      setScrapedTexts(texts);
     };
-    fetchLatestGazettes();
+
+    fetchLegalTexts();
 
     const interval = setInterval(() => {
-      fetchLatestGazettes();
+      fetchLegalTexts();
     }, 24 * 60 * 60 * 1000); // 24 hours
 
     return () => clearInterval(interval);
@@ -437,12 +429,12 @@ const LegalTexts: React.FC = () => {
 
       {/* Latest Official Gazettes */} 
       <div className={`rounded-lg shadow-md p-6 mb-6 ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Latest Official Gazettes</h3>
+        <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Latest Scraped Texts</h3>
         <div className="space-y-4">
-          {latestGazettes.map((gazette, index) => (
+          {scrapedTexts.map((text, index) => (
             <div key={index} className="border-b pb-4">
-              <a href={gazette.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                Official Gazette No. {gazette.number} - {gazette.date}
+              <a href={text.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {text.title}
               </a>
             </div>
           ))}

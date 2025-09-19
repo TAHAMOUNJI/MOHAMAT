@@ -1,18 +1,20 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { Low, JSONFile } from 'lowdb';
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const file = join(__dirname, 'db.json');
 const adapter = new JSONFile(file);
-const db = new Low(adapter);
+const defaultData = { clients: [], cases: [] };
+const db = new Low(adapter, defaultData);
 
 await db.read();
-
-db.data ||= { clients: [], cases: [] };
 
 const app = express();
 app.use(cors());
@@ -108,6 +110,25 @@ app.delete('/api/cases/:id', async (req, res) => {
     }
 });
 
+// Legal Texts Scraper Route
+app.get('/api/legal-texts', async (req, res) => {
+  try {
+    const { data } = await axios.get('https://www.joradp.dz');
+    const $ = cheerio.load(data);
+    const legalTexts = [];
+    $('article.post').each((i, el) => {
+      const title = $(el).find('h3.post-title a').text();
+      const link = $(el).find('h3.post-title a').attr('href');
+      if (title && link) {
+        legalTexts.push({ title, link });
+      }
+    });
+    res.json(legalTexts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error scraping legal texts');
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
