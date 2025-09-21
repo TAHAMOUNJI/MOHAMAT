@@ -54,18 +54,39 @@ export const formatDateLong = (date: Date | string): string => {
 // New functions for input formatting
 export const formatDateForInput = (isoDate: string): string => {
   if (!isoDate) return '';
-  const [year, month, day] = isoDate.split('T')[0].split('-');
-  return `${day}/${month}/${year}`;
+  try {
+    const date = new Date(isoDate);
+    if (isNaN(date.getTime())) return '';
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  } catch {
+    return '';
+  }
 };
 
 export const parseDateFromInput = (formattedDate: string): string => {
   if (!formattedDate) return '';
-  const parts = formattedDate.split('/');
-  if (parts.length === 3) {
-    const [day, month, year] = parts;
-    if (day.length === 2 && month.length === 2 && year.length === 4) {
+    const parts = formattedDate.split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      const dayNum = parseInt(day, 10);
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
+      
+      if (dayNum >= 1 && dayNum <= 31 && monthNum >= 1 && monthNum <= 12 && yearNum >= 1900) {
+        const date = new Date(yearNum, monthNum - 1, dayNum);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString().split('T')[0];
+        }
       return `${year}-${month}-${day}`;
     }
   }
-  return formattedDate; // Return original if format is not as expected
+    return '';
+  } catch {
+    return '';
+  }
 };

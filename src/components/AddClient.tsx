@@ -4,7 +4,7 @@ import { algeriaData } from '../data/algeriaData';
 import { parseDateFromInput } from '../utils/dateUtils';
 
 interface AddClientProps {
-  onAddClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Client | undefined>;
+  onAddClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onSaveAndAddCase?: (clientId: string) => void;
 }
 
@@ -51,10 +51,12 @@ const AddClient: React.FC<AddClientProps> = ({ onAddClient, onSaveAndAddCase }) 
       } : undefined,
     };
     
-    const newClient = await onAddClient(clientData);
+    onAddClient(clientData);
     
-    if (saveAndAddCase && onSaveAndAddCase && newClient) {
-      onSaveAndAddCase(newClient.id);
+    if (saveAndAddCase && onSaveAndAddCase) {
+      // Generate a temporary ID for the new client
+      const tempId = Date.now().toString();
+      onSaveAndAddCase(tempId);
     }
     
     // Reset form

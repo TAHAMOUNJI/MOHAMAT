@@ -9,7 +9,6 @@ import { LegalText, SearchFilters, LegalCategory, Notification } from '../types'
 import { legalCategories, commonTags } from '../data/legalCategories';
 import { sampleLegalTexts } from '../data/sampleLegalTexts';
 import { formatDateLong, formatDateTime } from '../utils/dateUtils';
-import { useTheme } from '../context/ThemeContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import AdvancedSearch from './AdvancedSearch';
 import SearchHistory from './SearchHistory';
@@ -120,7 +119,7 @@ class AlgerianLegalAPI {
 }
 
 const LegalTexts: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
+  const [theme, setTheme] = useState('light');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<LegalCategory | 'all'>('all');
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
@@ -146,6 +145,10 @@ const LegalTexts: React.FC = () => {
   const [offlineMode, setOfflineMode] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useLocalStorage<string[]>('recent_searches', []);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   const api = AlgerianLegalAPI.getInstance();
 
