@@ -13,7 +13,10 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import AdvancedSearch from './AdvancedSearch';
 import SearchHistory from './SearchHistory';
 import LegalTextComparison from './LegalTextComparison';
+<<<<<<< HEAD
 import ImportLegalTexts from './ImportLegalTexts';
+=======
+>>>>>>> c6a0b11296b8accf34e0030393a3e93797657dcc
 
 // Enhanced API service for fetching Algerian laws
 class AlgerianLegalAPI {
@@ -399,6 +402,7 @@ const LegalTexts: React.FC = () => {
     setNotifications([]);
   }, [setNotifications]);
 
+<<<<<<< HEAD
   const handleImport = (importedData: LegalText[]) => {
     const existingIds = new Set(legalTexts.map(text => text.id));
     const newTexts = importedData.filter(text => !existingIds.has(text.id));
@@ -417,6 +421,8 @@ const LegalTexts: React.FC = () => {
     }
   };
 
+=======
+>>>>>>> c6a0b11296b8accf34e0030393a3e93797657dcc
   // Feature 12: Quick actions
   const quickActions = [
     { id: 'recent', label: 'المضافة حديثاً', icon: Clock, count: stats.recentlyAdded },
@@ -909,8 +915,11 @@ const LegalTexts: React.FC = () => {
         </div>
       </div>
 
+<<<<<<< HEAD
       <ImportLegalTexts onImport={handleImport} />
 
+=======
+>>>>>>> c6a0b11296b8accf34e0030393a3e93797657dcc
       {/* Bulk Actions Bar */}
       {bulkMode && selectedTexts.length > 0 && (
         <div className={`rounded-lg p-4 mb-6 ${theme === 'dark' ? 'bg-orange-900' : 'bg-orange-100'}`}>
