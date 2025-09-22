@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { Client, Case, AuditLog } from './types';
 
@@ -23,15 +24,48 @@ import KeyboardShortcuts from './components/KeyboardShortcuts';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const [clients, setClients] = useLocalStorage<Client[]>('clients', []);
-  const [cases, setCases] = useLocalStorage<Case[]>('cases', []);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [cases, setCases] = useState<Case[]>([]);
   const [auditLogs, setAuditLogs] = useLocalStorage<AuditLog[]>('auditLogs', []);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClientId, setViewingClientId] = useState<string | null>(null);
   const [addingCaseForClientId, setAddingCaseForClientId] = useState<string | null>(null);
   const [editingCase, setEditingCase] = useState<Case | null>(null);
   const [clientToPrint, setClientToPrint] = useState<Client | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // API base URL
+  const API_BASE = 'http://localhost:3001/api';
+
+  // Load data on component mount
+  useEffect(() => {
+    loadClients();
+    loadCases();
+  }, []);
+
+  const loadClients = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE}/clients`);
+      setClients(response.data);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+      setError('فشل في تحميل بيانات الموكلين');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCases = async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/cases`);
+      setCases(response.data);
+    } catch (error) {
+      console.error('Error loading cases:', error);
+      setError('فشل في تحميل بيانات القضايا');
+    }
+  };
   const handlePageChange = (page: string) => {
     setCurrentPage(page);
     setViewingClientId(null);
@@ -50,33 +84,58 @@ function App() {
   };
 
   // --- Client Functions ---
-  const handleAddClient = (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newClient: Client = {
-      ...clientData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    setClients(prev => [newClient, ...prev]);
-    addAuditLog('create', 'client', newClient.id, `تم إنشاء موكل جديد: ${newClient.firstName} ${newClient.lastName}`);
+  const handleAddClient = async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      setLoading(true);
+      const response = await axios.post(`${API_BASE}/clients`, clientData);
+      const newClient = response.data;
+      setClients(prev => [newClient, ...prev]);
+      addAuditLog('create', 'client', newClient.id, `تم إنشاء موكل جديد: ${newClient.firstName} ${newClient.lastName}`);
+      setError(null);
+    } catch (error) {
+      console.error('Error adding client:', error);
+      setError('فشل في إضافة الموكل');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditClient = (client: Client) => {
     setEditingClient(client);
   };
 
-  const handleUpdateClient = (updatedClient: Client) => {
-    setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
-    addAuditLog('update', 'client', updatedClient.id, `تم تحديث بيانات الموكل: ${updatedClient.firstName} ${updatedClient.lastName}`);
-    setEditingClient(null); 
+  const handleUpdateClient = async (updatedClient: Client) => {
+    try {
+      setLoading(true);
+      await axios.put(`${API_BASE}/clients/${updatedClient.id}`, updatedClient);
+      setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+      addAuditLog('update', 'client', updatedClient.id, `تم تحديث بيانات الموكل: ${updatedClient.firstName} ${updatedClient.lastName}`);
+      setEditingClient(null);
+      setError(null);
+    } catch (error) {
+      console.error('Error updating client:', error);
+      setError('فشل في تحديث بيانات الموكل');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteClient = (id: string) => {
+  const handleDeleteClient = async (id: string) => {
     const client = clients.find(c => c.id === id);
     if (client && window.confirm(`هل أنت متأكد من حذف الموكل ${client.firstName} ${client.lastName}؟`)) {
-      setClients(prev => prev.filter(c => c.id !== id));
-      setCases(prev => prev.filter(c => c.clientId !== id));
-      addAuditLog('delete', 'client', id, `تم حذف الموكل: ${client.firstName} ${client.lastName}`);
+      try {
+        setLoading(true);
+        await axios.delete(`${API_BASE}/clients/${id}`);
+        setClients(prev => prev.filter(c => c.id !== id));
+        setCases(prev => prev.filter(c => c.clientId !== id));
+        addAuditLog('delete', 'client', id, `تم حذف الموكل: ${client.firstName} ${client.lastName}`);
+        setError(null);
+      } catch (error) {
+        console.error('Error deleting client:', error);
+        setError('فشل في حذف الموكل');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -103,34 +162,59 @@ function App() {
     setAddingCaseForClientId(clientId);
   };
 
-  const handleSaveCase = (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newCase: Case = {
-      ...caseData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setCases(prev => [newCase, ...prev]);
-    const client = clients.find(c => c.id === newCase.clientId);
-    addAuditLog('create', 'case', newCase.id, `تمت إضافة قضية جديدة "${newCase.subject}" للموكل ${client?.firstName} ${client?.lastName}`);
-    setAddingCaseForClientId(null);
+  const handleSaveCase = async (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      setLoading(true);
+      const response = await axios.post(`${API_BASE}/cases`, caseData);
+      const newCase = response.data;
+      setCases(prev => [newCase, ...prev]);
+      const client = clients.find(c => c.id === newCase.clientId);
+      addAuditLog('create', 'case', newCase.id, `تمت إضافة قضية جديدة "${newCase.subject}" للموكل ${client?.firstName} ${client?.lastName}`);
+      setAddingCaseForClientId(null);
+      setError(null);
+    } catch (error) {
+      console.error('Error adding case:', error);
+      setError('فشل في إضافة القضية');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditCase = (caseData: Case) => {
     setEditingCase(caseData);
   };
 
-  const handleUpdateCase = (updatedCase: Case) => {
-    setCases(prev => prev.map(c => c.id === updatedCase.id ? updatedCase : c));
-    addAuditLog('update', 'case', updatedCase.id, `تم تحديث قضية "${updatedCase.subject}"`);
-    setEditingCase(null);
+  const handleUpdateCase = async (updatedCase: Case) => {
+    try {
+      setLoading(true);
+      await axios.put(`${API_BASE}/cases/${updatedCase.id}`, updatedCase);
+      setCases(prev => prev.map(c => c.id === updatedCase.id ? updatedCase : c));
+      addAuditLog('update', 'case', updatedCase.id, `تم تحديث قضية "${updatedCase.subject}"`);
+      setEditingCase(null);
+      setError(null);
+    } catch (error) {
+      console.error('Error updating case:', error);
+      setError('فشل في تحديث القضية');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteCase = (caseId: string) => {
+  const handleDeleteCase = async (caseId: string) => {
     const caseToDelete = cases.find(c => c.id === caseId);
     if (caseToDelete && window.confirm(`هل أنت متأكد من حذف قضية "${caseToDelete.subject}"؟`)) {
-      setCases(prev => prev.filter(c => c.id !== caseId));
-      addAuditLog('delete', 'case', caseId, `تم حذف قضية "${caseToDelete.subject}"`);
+      try {
+        setLoading(true);
+        await axios.delete(`${API_BASE}/cases/${caseId}`);
+        setCases(prev => prev.filter(c => c.id !== caseId));
+        addAuditLog('delete', 'case', caseId, `تم حذف قضية "${caseToDelete.subject}"`);
+        setError(null);
+      } catch (error) {
+        console.error('Error deleting case:', error);
+        setError('فشل في حذف القضية');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -191,6 +275,28 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-100" dir="rtl">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg p-6 flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span>جاري التحميل...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          <div className="flex items-center gap-2">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-white hover:text-gray-200">
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex">
         <Sidebar currentPage={currentPage} onPageChange={handlePageChange} />
         

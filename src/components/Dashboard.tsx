@@ -13,7 +13,14 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ clients, cases, onPageChange }) => {
   const [favorites] = useLocalStorage<string[]>('legal_favorites', []);
   
-  const upcomingSessions = cases.filter(c => c.sessionDate && new Date(c.sessionDate) > new Date());
+  const upcomingSessions = cases.filter(c => {
+    if (!c.sessionDate) return false;
+    try {
+      return new Date(c.sessionDate) > new Date();
+    } catch {
+      return false;
+    }
+  });
   
   const stats = [
     {
@@ -36,7 +43,14 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, cases, onPageChange }) =
     },
     {
       title: 'القضايا النشطة',
-      value: cases.filter(c => !c.sessionDate || new Date(c.sessionDate) > new Date()).length,
+      value: cases.filter(c => {
+        if (!c.sessionDate) return true;
+        try {
+          return new Date(c.sessionDate) > new Date();
+        } catch {
+          return true;
+        }
+      }).length,
       icon: FileText,
       color: 'bg-purple-500'
     },
