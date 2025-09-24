@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { Moon, Sun, Trash2, Download, Upload } from 'lucide-react';
 import { Client, Case } from '../types';
@@ -51,7 +51,7 @@ const Settings: React.FC<SettingsProps> = ({ clients, cases, setClients, setCase
           } else {
             alert('ملف النسخ الاحتياطي غير صالح.');
           }
-        } catch (error) {
+        } catch {
           alert('حدث خطأ أثناء قراءة ملف النسخ الاحتياطي.');
         }
       };

@@ -67,8 +67,6 @@ export interface Municipality {
 export interface AuditLog {
   id: string;
   action: 'create' | 'update' | 'delete';
-  entityType: 'client' | 'case';
-  entityId: string;
   timestamp: string;
   details: string;
 }

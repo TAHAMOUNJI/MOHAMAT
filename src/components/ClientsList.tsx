@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Eye, Edit, Trash2, Printer, FileDown, Check } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, Printer, Check } from 'lucide-react';
 import { Client, Case } from '../types';
 import { formatDateShort } from '../utils/dateUtils';
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, X, Calendar, Tag, FileText } from 'lucide-react';
+import { X, Tag } from 'lucide-react';
 import { SearchFilters, LegalCategory } from '../types';
 import { legalCategories, commonTags } from '../data/legalCategories';
 

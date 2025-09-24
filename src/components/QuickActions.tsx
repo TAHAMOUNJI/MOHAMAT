@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Search, FileText, Users, Scale, BookOpen, Download, Settings } from 'lucide-react';
+import { Plus, Search, FileText, Scale, BookOpen, Download } from 'lucide-react';
 
 interface QuickActionsProps {
   onPageChange: (page: string) => void;

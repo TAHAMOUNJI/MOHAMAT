@@ -1,12 +1,13 @@
 import React from 'react';
 import { Users, Scale, Calendar, FileText, BookOpen, Star } from 'lucide-react';
+import { Client, Case } from '../types';
 import { formatDateShort } from '../utils/dateUtils';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import QuickActions from './QuickActions';
 
 interface DashboardProps {
-  clients: any[];
-  cases: any[];
+  clients: Client[];
+  cases: Case[];
   onPageChange: (page: string) => void;
 }
 

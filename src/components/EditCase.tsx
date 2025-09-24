@@ -27,7 +27,7 @@ const EditCase: React.FC<EditCaseProps> = ({ caseData, onClose, onUpdateCase }) 
         setIsWilayaCourtDisabled(false);
       }
     }
-  }, [caseData]);
+  }, [formData, caseData]);
 
   useEffect(() => {
     if (formData && (formData.level === 'مجلس الدولة (Conseil d’État)' || formData.level === 'المحكمة العليا (Cour Suprême)')) {

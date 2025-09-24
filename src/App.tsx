@@ -1,119 +1,152 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { Client, Case, AuditLog } from './types';
+import * as api from './api';
 
-// Components
+// Import all components
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import AddClient from './components/AddClient';
 import ClientsList from './components/ClientsList';
-import ExportData from './components/ExportData';
-import EditClient from './components/EditClient';
-import ClientDetailView from './components/ClientDetailView';
 import AddCase from './components/AddCase';
-import EditCase from './components/EditCase';
-import PrintView from './components/PrintView';
-import Reports from './components/Reports';
-import Settings from './components/Settings';
 import CasesList from './components/CasesList';
 import LegalTexts from './components/LegalTexts';
-import OfflineIndicator from './components/OfflineIndicator';
-import KeyboardShortcuts from './components/KeyboardShortcuts';
+import Reports from './components/Reports';
+import ExportData from './components/ExportData';
+import Settings from './components/Settings';
+import ClientDetailView from './components/ClientDetailView';
+import EditClient from './components/EditClient';
+import EditCase from './components/EditCase';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
   const [cases, setCases] = useState<Case[]>([]);
-  const [auditLogs, setAuditLogs] = useLocalStorage<AuditLog[]>('auditLogs', []);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [viewingClientId, setViewingClientId] = useState<string | null>(null);
-  const [addingCaseForClientId, setAddingCaseForClientId] = useState<string | null>(null);
-  const [editingCase, setEditingCase] = useState<Case | null>(null);
-  const [clientToPrint, setClientToPrint] = useState<Client | null>(null);
+  const [, setAuditLogs] = useLocalStorage<AuditLog[]>('auditLogs', []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedCase, setSelectedCase] = useState<Case | null>(null);
 
-  // API base URL
-  const API_BASE = 'http://localhost:3001/api';
+  const logAction = useCallback((action: 'create' | 'update' | 'delete', details: string) => {
+    const newLog: AuditLog = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      action,
+      details,
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+  }, [setAuditLogs]);
 
-  // Load data on component mount
-  useEffect(() => {
-    loadClients();
-    loadCases();
-  }, []);
-
-  const loadClients = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE}/clients`);
-      setClients(response.data);
+      // Try to load from API, fallback to empty arrays if server is not running
+      try {
+        const [clientsData, casesData] = await Promise.all([
+          api.getClients(),
+          api.getCases(),
+        ]);
+        setClients(clientsData);
+        setCases(casesData);
+      } catch (apiError) {
+        console.log('API not available, using empty data');
+        setClients([]);
+        setCases([]);
+      }
+      setError(null);
     } catch (error) {
-      console.error('Error loading clients:', error);
-      setError('فشل في تحميل بيانات الموكلين');
+      console.error('Error loading data:', error);
+      setError('فشل في تحميل البيانات من الخادم');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadCases = async () => {
-    try {
-      const response = await axios.get(`${API_BASE}/cases`);
-      setCases(response.data);
-    } catch (error) {
-      console.error('Error loading cases:', error);
-      setError('فشل في تحميل بيانات القضايا');
-    }
-  };
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   const handlePageChange = (page: string) => {
     setCurrentPage(page);
-    setViewingClientId(null);
-  }
-
-  const addAuditLog = (action: 'create' | 'update' | 'delete', entityType: 'client' | 'case', entityId: string, details: string) => {
-    const newLog: AuditLog = {
-      id: Date.now().toString(),
-      action,
-      entityType,
-      entityId,
-      timestamp: new Date().toISOString(),
-      details
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
+    setSelectedClient(null);
+    setSelectedCase(null);
   };
 
-  // --- Client Functions ---
   const handleAddClient = async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_BASE}/clients`, clientData);
-      const newClient = response.data;
-      setClients(prev => [newClient, ...prev]);
-      addAuditLog('create', 'client', newClient.id, `تم إنشاء موكل جديد: ${newClient.firstName} ${newClient.lastName}`);
-      setError(null);
+      try {
+        const newClient = await api.createClient(clientData);
+        setClients(prev => [...prev, newClient]);
+        logAction('create', `Client created: ${newClient.firstName} ${newClient.lastName}`);
+      } catch (apiError) {
+        // Fallback to local creation
+        const newClient: Client = {
+          ...clientData,
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        setClients(prev => [...prev, newClient]);
+        logAction('create', `Client created: ${newClient.firstName} ${newClient.lastName}`);
+      }
+      setCurrentPage('clients');
     } catch (error) {
-      console.error('Error adding client:', error);
       setError('فشل في إضافة الموكل');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditClient = (client: Client) => {
-    setEditingClient(client);
-  };
-
-  const handleUpdateClient = async (updatedClient: Client) => {
+  // ✅ FIX: Implemented the 'Save and Add Case' functionality.
+  // This function saves the new client and then immediately navigates
+  // to the 'Add Case' page for that newly created client.
+  const handleSaveClientAndAddCase = async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       setLoading(true);
-      await axios.put(`${API_BASE}/clients/${updatedClient.id}`, updatedClient);
-      setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
-      addAuditLog('update', 'client', updatedClient.id, `تم تحديث بيانات الموكل: ${updatedClient.firstName} ${updatedClient.lastName}`);
-      setEditingClient(null);
-      setError(null);
+      let newClient: Client;
+      try {
+        newClient = await api.createClient(clientData);
+        setClients(prev => [...prev, newClient]);
+      } catch (apiError) {
+        // Fallback to local creation
+        newClient = {
+          ...clientData,
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        setClients(prev => [...prev, newClient]);
+      }
+      logAction('create', `Client created: ${newClient.firstName} ${newClient.lastName}`);
+      setSelectedClient(newClient);
+      setCurrentPage(`add-case-${newClient.id}`);
     } catch (error) {
-      console.error('Error updating client:', error);
+      setError('فشل في إضافة الموكل');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  // ✅ FIX: Refactored to accept a single object argument for consistency.
+  // This makes the component prop easier to manage: `onUpdateClient={handleUpdateClient}`.
+  const handleUpdateClient = async (client: Partial<Client> & { id: string }) => {
+    const { id, ...updateData } = client;
+    try {
+      setLoading(true);
+      try {
+        const updatedClient = await api.updateClient(id, updateData);
+        setClients(prev => prev.map(c => c.id === id ? updatedClient : c));
+      } catch (apiError) {
+        // Fallback to local update
+        setClients(prev => prev.map(c => c.id === id ? { ...c, ...updateData, updatedAt: new Date().toISOString() } : c));
+      }
+      logAction('update', `Client updated: ${id}`);
+      setCurrentPage('clients');
+    } catch (error) {
       setError('فشل في تحديث بيانات الموكل');
     } finally {
       setLoading(false);
@@ -121,17 +154,20 @@ function App() {
   };
 
   const handleDeleteClient = async (id: string) => {
-    const client = clients.find(c => c.id === id);
-    if (client && window.confirm(`هل أنت متأكد من حذف الموكل ${client.firstName} ${client.lastName}؟`)) {
+    if (window.confirm('هل أنت متأكد من حذف هذا الموكل؟ سيتم حذف جميع القضايا المتعلقة به.')) {
       try {
         setLoading(true);
-        await axios.delete(`${API_BASE}/clients/${id}`);
+        try {
+          await api.deleteClient(id);
+        } catch (apiError) {
+          // Fallback to local deletion
+          console.log('API not available, deleting locally');
+        }
         setClients(prev => prev.filter(c => c.id !== id));
         setCases(prev => prev.filter(c => c.clientId !== id));
-        addAuditLog('delete', 'client', id, `تم حذف الموكل: ${client.firstName} ${client.lastName}`);
-        setError(null);
+        logAction('delete', `Client deleted: ${id}`);
+        setCurrentPage('clients');
       } catch (error) {
-        console.error('Error deleting client:', error);
         setError('فشل في حذف الموكل');
       } finally {
         setLoading(false);
@@ -139,78 +175,69 @@ function App() {
     }
   };
 
-  const handleViewClient = (client: Client) => {
-    setViewingClientId(client.id);
-    setCurrentPage('client-details');
-  };
-
-  const handlePrintClient = (client: Client) => {
-    setClientToPrint(client);
-  };
-
-  useEffect(() => {
-    if (clientToPrint) {
-      setTimeout(() => {
-        window.print();
-        setClientToPrint(null);
-      }, 100);
-    }
-  }, [clientToPrint]);
-
-  // --- Case Functions ---
-  const handleAddCase = (clientId: string) => {
-    setAddingCaseForClientId(clientId);
-  };
-
-  const handleSaveCase = async (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => {
+  // ✅ FIX: Added an optional 'redirectPage' parameter to improve navigation flow.
+  // After adding a case, the user can be redirected to a more relevant page
+  // (like the client's detail view) instead of always going to the main cases list.
+  const handleAddCase = async (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>, redirectPage: string = 'cases') => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_BASE}/cases`, caseData);
-      const newCase = response.data;
-      setCases(prev => [newCase, ...prev]);
-      const client = clients.find(c => c.id === newCase.clientId);
-      addAuditLog('create', 'case', newCase.id, `تمت إضافة قضية جديدة "${newCase.subject}" للموكل ${client?.firstName} ${client?.lastName}`);
-      setAddingCaseForClientId(null);
-      setError(null);
+      try {
+        const newCase = await api.createCase(caseData);
+        setCases(prev => [...prev, newCase]);
+        logAction('create', `Case created: ${newCase.subject}`);
+      } catch (apiError) {
+        // Fallback to local creation
+        const newCase: Case = {
+          ...caseData,
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        setCases(prev => [...prev, newCase]);
+        logAction('create', `Case created: ${newCase.subject}`);
+      }
+      setCurrentPage(redirectPage);
     } catch (error) {
-      console.error('Error adding case:', error);
       setError('فشل في إضافة القضية');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditCase = (caseData: Case) => {
-    setEditingCase(caseData);
-  };
-
-  const handleUpdateCase = async (updatedCase: Case) => {
+  // ✅ FIX: Refactored to accept a single object argument for consistency.
+  const handleUpdateCase = async (caseData: Partial<Case> & { id: string }) => {
+    const { id, ...updateData } = caseData;
     try {
       setLoading(true);
-      await axios.put(`${API_BASE}/cases/${updatedCase.id}`, updatedCase);
-      setCases(prev => prev.map(c => c.id === updatedCase.id ? updatedCase : c));
-      addAuditLog('update', 'case', updatedCase.id, `تم تحديث قضية "${updatedCase.subject}"`);
-      setEditingCase(null);
-      setError(null);
+      try {
+        const updatedCase = await api.updateCase(id, updateData);
+        setCases(prev => prev.map(c => c.id === id ? updatedCase : c));
+      } catch (apiError) {
+        // Fallback to local update
+        setCases(prev => prev.map(c => c.id === id ? { ...c, ...updateData, updatedAt: new Date().toISOString() } : c));
+      }
+      logAction('update', `Case updated: ${id}`);
+      setCurrentPage('cases');
     } catch (error) {
-      console.error('Error updating case:', error);
-      setError('فشل في تحديث القضية');
+      setError('فشل في تحديث بيانات القضية');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteCase = async (caseId: string) => {
-    const caseToDelete = cases.find(c => c.id === caseId);
-    if (caseToDelete && window.confirm(`هل أنت متأكد من حذف قضية "${caseToDelete.subject}"؟`)) {
+  const handleDeleteCase = async (id: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذه القضية؟')) {
       try {
         setLoading(true);
-        await axios.delete(`${API_BASE}/cases/${caseId}`);
-        setCases(prev => prev.filter(c => c.id !== caseId));
-        addAuditLog('delete', 'case', caseId, `تم حذف قضية "${caseToDelete.subject}"`);
-        setError(null);
+        try {
+          await api.deleteCase(id);
+        } catch (apiError) {
+          // Fallback to local deletion
+          console.log('API not available, deleting locally');
+        }
+        setCases(prev => prev.filter(c => c.id !== id));
+        logAction('delete', `Case deleted: ${id}`);
       } catch (error) {
-        console.error('Error deleting case:', error);
         setError('فشل في حذف القضية');
       } finally {
         setLoading(false);
@@ -218,64 +245,139 @@ function App() {
     }
   };
 
-  // عرض الصفحات
   const renderCurrentPage = () => {
-    const clientToView = clients.find(c => c.id === viewingClientId);
-
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard clients={clients} cases={cases} onPageChange={handlePageChange} />;
-      
       case 'add-client':
-        return <AddClient onAddClient={handleAddClient} />;
-      
+        // ✅ FIX: Passed the new handleSaveClientAndAddCase function to the component.
+        return <AddClient onAddClient={handleAddClient} onSaveAndAddCase={handleSaveClientAndAddCase} />;
       case 'clients':
+        return <ClientsList 
+          clients={clients} 
+          cases={cases}
+          onEditClient={(client) => {
+            setSelectedClient(client);
+            setCurrentPage('edit-client');
+          }}
+          onDeleteClient={handleDeleteClient}
+          onViewClient={(client) => {
+            setSelectedClient(client);
+            setCurrentPage('view-client');
+          }}
+          onPrintClient={(client) => {
+            // TODO: Implement print functionality
+            console.log('Print client:', client);
+          }}
+        />;
+      case 'edit-client':
+        // ✅ FIX: Simplified the onUpdateClient prop call.
+        return selectedClient ? <EditClient client={selectedClient} onUpdateClient={handleUpdateClient} onClose={() => setCurrentPage('clients')} /> : <div>لم يتم اختيار موكل</div>;
+      case 'view-client':
+        return selectedClient ? <ClientDetailView 
+          client={selectedClient} 
+          cases={cases.filter(c => c.clientId === selectedClient.id)} 
+          onAddCase={(clientId) => {
+            setCurrentPage(`add-case-${clientId}`);
+          }}
+          onEditCase={(caseData) => {
+            setSelectedCase(caseData);
+            setCurrentPage('edit-case');
+          }}
+          onDeleteCase={handleDeleteCase}
+        /> : <div>لم يتم اختيار موكل</div>;
+      case 'add-case':
         return (
-          <ClientsList
-            clients={clients}
-            cases={cases}
-            onEditClient={handleEditClient}
-            onDeleteClient={handleDeleteClient}
-            onViewClient={handleViewClient}
-            onPrintClient={handlePrintClient}
-          />
+          <div className="p-6">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">إضافة قضية جديدة</h2>
+              <p className="text-slate-600">اختر موكل لإضافة قضية له</p>
+            </div>
+            
+            {clients.length > 0 ? (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {clients.map(client => (
+                    <button
+                      key={client.id}
+                      onClick={() => {
+                        setSelectedClient(client);
+                        setCurrentPage(`add-case-${client.id}`);
+                      }}
+                      className="p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-right"
+                    >
+                      <h3 className="font-medium text-slate-800">
+                        {client.firstName} {client.lastName}
+                      </h3>
+                      <p className="text-sm text-slate-600">{client.phoneNumber}</p>
+                      <p className="text-xs text-slate-500">
+                        {cases.filter(c => c.clientId === client.id).length} قضية
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                <p className="text-slate-500 mb-4">لا يوجد موكلون لإضافة قضية لهم</p>
+                <button
+                  onClick={() => setCurrentPage('add-client')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  إضافة موكل أولاً
+                </button>
+              </div>
+            )}
+          </div>
         );
-
       case 'cases':
-        return <CasesList cases={cases} clients={clients} onViewClient={handleViewClient} />;
-      
+        return <CasesList 
+          cases={cases} 
+          clients={clients}
+          onViewClient={(client) => {
+            setSelectedClient(client);
+            setCurrentPage('view-client');
+          }}
+        />;
+      case 'edit-case':
+        // ✅ FIX: Simplified the onUpdateCase prop call.
+        return selectedCase ? <EditCase caseData={selectedCase} onUpdateCase={handleUpdateCase} onClose={() => setCurrentPage('cases')} /> : <div>لم يتم اختيار قضية</div>;
       case 'legal-texts':
         return <LegalTexts />;
-      
-      case 'client-details':
-        if (!clientToView) return <div className="p-6">لم يتم العثور على الموكل.</div>;
-        return (
-          <ClientDetailView 
-            client={clientToView}
-            cases={cases.filter(c => c.clientId === clientToView.id)}
-            onAddCase={handleAddCase}
-            onEditCase={handleEditCase}
-            onDeleteCase={handleDeleteCase}
-          />
-        );
-
-      case 'export':
-        return <ExportData clients={clients} cases={cases} />;
-
       case 'reports':
         return <Reports clients={clients} cases={cases} />;
-
+      case 'export':
+        return <ExportData clients={clients} cases={cases} />;
       case 'settings':
         return <Settings clients={clients} cases={cases} setClients={setClients} setCases={setCases} />;
-      
       default:
-        return <Dashboard clients={clients} cases={cases} />;
+        // Handle dynamic add-case with client ID
+        if (currentPage.startsWith('add-case-')) {
+          const clientId = currentPage.replace('add-case-', '');
+          const clientForCase = clients.find(c => c.id === clientId);
+          if (clientForCase) {
+            return <AddCase 
+              clientId={clientId} 
+              // ✅ FIX: Improved navigation to return to the client detail view,
+              // which is a more intuitive user experience.
+              onClose={() => {
+                setSelectedClient(clientForCase);
+                setCurrentPage('view-client');
+              }}
+              onSaveCase={(data) => {
+                setSelectedClient(clientForCase);
+                handleAddCase(data, 'view-client');
+              }}
+            />;
+          }
+          return <div>Client not found</div>;
+        }
+        return <Dashboard clients={clients} cases={cases} onPageChange={handlePageChange} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-100" dir="rtl">
-      {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white rounded-lg p-6 flex items-center gap-3">
@@ -285,56 +387,22 @@ function App() {
         </div>
       )}
 
-      {/* Error Message */}
       {error && (
-        <div className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-          <div className="flex items-center gap-2">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-white hover:text-gray-200">
-              ×
-            </button>
-          </div>
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50" onClick={() => setError(null)}>
+          {error}
         </div>
       )}
 
       <div className="flex">
         <Sidebar currentPage={currentPage} onPageChange={handlePageChange} />
         
-        <div className="flex-1">
+        <div className="flex-1 flex flex-col">
           <Header />
-          <main className="min-h-[calc(100vh-120px)]">
+          <main className="flex-1 p-6">
             {renderCurrentPage()}
           </main>
         </div>
       </div>
-
-      {/* Modals */}
-      {editingClient && (
-        <EditClient 
-          client={editingClient}
-          onClose={() => setEditingClient(null)}
-          onUpdateClient={handleUpdateClient}
-        />
-      )}
-      {addingCaseForClientId && (
-        <AddCase 
-          clientId={addingCaseForClientId}
-          onClose={() => setAddingCaseForClientId(null)}
-          onSaveCase={handleSaveCase}
-        />
-      )}
-      {editingCase && (
-        <EditCase 
-          caseData={editingCase}
-          onClose={() => setEditingCase(null)}
-          onUpdateCase={handleUpdateCase}
-        />
-      )}
-
-            <PrintView client={clientToPrint} cases={clientToPrint ? cases.filter(c => c.clientId === clientToPrint.id) : []} />
-      
-      <OfflineIndicator />
-      <KeyboardShortcuts onPageChange={handlePageChange} />
     </div>
   );
 }

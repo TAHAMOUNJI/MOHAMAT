@@ -1,30 +1,155 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Search, Filter, BookOpen, Star, Eye, Copy, Share2, Download, Bell, Tag, Calendar, 
-  FileText, ExternalLink, Moon, Sun, RefreshCw, Bookmark, History, Globe, 
-  AlertTriangle, CheckCircle, Clock, Zap, Archive, Database, Settings,
-  TrendingUp, BarChart3, Users, MessageSquare, Heart, Shield, Wifi, WifiOff
+  FileText, ExternalLink, Moon, Sun, RefreshCw, Bookmark, History, 
+  CheckCircle, Clock, Zap, Settings,
+  TrendingUp, BarChart3, Wifi, WifiOff
 } from 'lucide-react';
-import { LegalText, SearchFilters, LegalCategory, Notification } from '../types';
-import { legalCategories, commonTags } from '../data/legalCategories';
-import { sampleLegalTexts } from '../data/sampleLegalTexts';
-import { formatDateLong, formatDateTime } from '../utils/dateUtils';
-import { useLocalStorage } from '../hooks/useLocalStorage';
-import AdvancedSearch from './AdvancedSearch';
-import SearchHistory from './SearchHistory';
-import LegalTextComparison from './LegalTextComparison';
-<<<<<<< HEAD
-import ImportLegalTexts from './ImportLegalTexts';
-=======
->>>>>>> c6a0b11296b8accf34e0030393a3e93797657dcc
 
-// Enhanced API service for fetching Algerian laws
+// Define types locally since they're imported from external files
+interface LegalText {
+  id: string;
+  title: string;
+  category: LegalCategory;
+  articleNumber?: string;
+  content: string;
+  publishDate: string;
+  officialGazetteNumber?: string;
+  officialGazetteUrl?: string;
+  tags: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SearchFilters {
+  articleNumber?: string;
+  officialGazetteNumber?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  tags?: string[];
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'new_law' | 'update' | 'success' | 'error';
+  isRead: boolean;
+  createdAt: string;
+  relatedLegalTextId?: string;
+}
+
+type LegalCategory = 
+  | 'constitutional_law'
+  | 'civil_law'
+  | 'commercial_law'
+  | 'penal_law'
+  | 'administrative_law'
+  | 'labor_law'
+  | 'tax_law'
+  | 'procedural_law'
+  | 'international_law'
+  | 'customs_law';
+
+// Mock data
+const legalCategories: Record<LegalCategory, { name: string; icon: string }> = {
+  constitutional_law: { name: 'القانون الدستوري', icon: '📜' },
+  civil_law: { name: 'القانون المدني', icon: '⚖️' },
+  commercial_law: { name: 'القانون التجاري', icon: '💼' },
+  penal_law: { name: 'القانون الجزائي', icon: '🔒' },
+  administrative_law: { name: 'القانون الإداري', icon: '🏛️' },
+  labor_law: { name: 'قانون العمل', icon: '👨‍💼' },
+  tax_law: { name: 'القانون الضريبي', icon: '💰' },
+  procedural_law: { name: 'قانون الإجراءات', icon: '📋' },
+  international_law: { name: 'القانون الدولي', icon: '🌍' },
+  customs_law: { name: 'القانون الجمركي', icon: '🛃' }
+};
+
+const commonTags = [
+  'إجراءات', 'تحديث', 'قضاء', 'تجارة إلكترونية', 'مرسوم', 'رقمنة',
+  'مدني', 'تجاري', 'جزائي', 'إداري', 'دستوري', 'عمل', 'ضريبي', 'جمركي'
+];
+
+const sampleLegalTexts: LegalText[] = [
+  {
+    id: '1',
+    title: 'قانون الإجراءات المدنية والإدارية',
+    category: 'procedural_law',
+    articleNumber: 'المادة 15',
+    content: 'تحديث جديد على قانون الإجراءات المدنية والإدارية يتضمن تبسيط الإجراءات القضائية وتسريع البت في القضايا.',
+    publishDate: new Date().toISOString(),
+    officialGazetteNumber: '85',
+    tags: ['إجراءات', 'تحديث', 'قضاء'],
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: '2',
+    title: 'مرسوم تنفيذي جديد للقانون التجاري',
+    category: 'commercial_law',
+    articleNumber: 'المادة 42',
+    content: 'مرسوم تنفيذي جديد ينظم التجارة الإلكترونية والمعاملات الرقمية في الجزائر.',
+    publishDate: new Date(Date.now() - 86400000).toISOString(),
+    officialGazetteNumber: '84',
+    tags: ['تجارة إلكترونية', 'مرسوم', 'رقمنة'],
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
+
+// Date utility functions
+const formatDateLong = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('ar-DZ', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+
+const formatDateTime = (dateString: string): string => {
+  return new Date(dateString).toLocaleString('ar-DZ', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// Custom hook for localStorage
+const useLocalStorage = <T,>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] => {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      return initialValue;
+    }
+  });
+
+  const setValue = (value: T | ((val: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (error) {
+      console.error(`Error setting localStorage key "${key}":`, error);
+    }
+  };
+
+  return [storedValue, setValue];
+};
+
+// Enhanced API service
 class AlgerianLegalAPI {
   private static instance: AlgerianLegalAPI;
   private baseUrl = 'https://www.joradp.dz';
   private cache = new Map();
   private lastSync = 0;
-  private syncInterval = 24 * 60 * 60 * 1000; // 24 hours
+  private syncInterval = 24 * 60 * 60 * 1000;
 
   static getInstance(): AlgerianLegalAPI {
     if (!AlgerianLegalAPI.instance) {
@@ -33,31 +158,19 @@ class AlgerianLegalAPI {
     return AlgerianLegalAPI.instance;
   }
 
-  async fetchLatestLaws(): Promise<any[]> {
+  async fetchLatestLaws(): Promise<LegalText[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/latest-laws`);
-      if (!response.ok) {
-        // Fallback to mock data for demo
-        return this.getMockLegalTexts();
-      }
-      return await response.json();
+      // For demo purposes, return mock data
+      return this.getMockLegalTexts();
     } catch (error) {
       console.error('Failed to fetch laws:', error);
       return this.getMockLegalTexts();
     }
   }
 
-  async searchLaws(query: string, filters?: SearchFilters): Promise<any[]> {
+  async searchLaws(query: string, filters?: SearchFilters): Promise<LegalText[]> {
     try {
-      const params = new URLSearchParams({
-        q: query,
-        ...filters
-      });
-      const response = await fetch(`${this.baseUrl}/api/search?${params}`);
-      if (!response.ok) {
-        return this.mockSearch(query);
-      }
-      return await response.json();
+      return this.mockSearch(query);
     } catch (error) {
       console.error('Search failed:', error);
       return this.mockSearch(query);
@@ -66,9 +179,8 @@ class AlgerianLegalAPI {
 
   async getLawByArticle(articleNumber: string): Promise<LegalText | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/article/${articleNumber}`);
-      if (!response.ok) return null;
-      return await response.json();
+      const text = sampleLegalTexts.find(t => t.articleNumber === articleNumber);
+      return text || null;
     } catch (error) {
       console.error('Failed to fetch article:', error);
       return null;
@@ -86,19 +198,6 @@ class AlgerianLegalAPI {
         publishDate: new Date().toISOString(),
         officialGazetteNumber: '85',
         tags: ['إجراءات', 'تحديث', 'قضاء'],
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: (Date.now() + 1).toString(),
-        title: 'مرسوم تنفيذي جديد للقانون التجاري',
-        category: 'commercial_law',
-        articleNumber: 'المادة 42',
-        content: 'مرسوم تنفيذي جديد ينظم التجارة الإلكترونية والمعاملات الرقمية في الجزائر.',
-        publishDate: new Date(Date.now() - 86400000).toISOString(),
-        officialGazetteNumber: '84',
-        tags: ['تجارة إلكترونية', 'مرسوم', 'رقمنة'],
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -122,6 +221,57 @@ class AlgerianLegalAPI {
   }
 }
 
+// Simple component placeholders
+const AdvancedSearch: React.FC<{
+  filters: SearchFilters;
+  onFiltersChange: (filters: SearchFilters) => void;
+  onClose: () => void;
+}> = ({ onClose }) => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 className="text-lg font-semibold mb-4">البحث المتقدم</h3>
+      <p>ميزة البحث المتقدم قيد التطوير...</p>
+      <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg">
+        إغلاق
+      </button>
+    </div>
+  </div>
+);
+
+const SearchHistory: React.FC<{ onSearchSelect: (term: string) => void }> = () => null;
+const LegalTextComparison: React.FC<{ originalText: LegalText; amendments: LegalText[]; onClose: () => void }> = () => null;
+const ImportLegalTexts: React.FC<{ onImport: (texts: LegalText[]) => void }> = ({ onImport }) => (
+  <div className="mb-4">
+    <button 
+      onClick={() => onImport(sampleLegalTexts)}
+      className="px-4 py-2 bg-green-600 text-white rounded-lg"
+    >
+      استيراد نصوص تجريبية
+    </button>
+  </div>
+);
+
+// Speech Recognition types
+interface SpeechRecognition extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition: {
+      new (): SpeechRecognition;
+    };
+  }
+}
+
 const LegalTexts: React.FC = () => {
   const [theme, setTheme] = useState('light');
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,19 +286,20 @@ const LegalTexts: React.FC = () => {
   const [notifications, setNotifications] = useLocalStorage<Notification[]>('legal_notifications', []);
   const [legalTexts, setLegalTexts] = useLocalStorage<LegalText[]>('legal_texts', sampleLegalTexts);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useLocalStorage<string>('last_sync_time', '');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [sortBy, setSortBy] = useState<'date' | 'title' | 'category' | 'relevance'>('date');
   const [showComparison, setShowComparison] = useState(false);
-  const [comparisonTexts, setComparisonTexts] = useState<LegalText[]>([]);
+  const [comparisonTexts] = useState<LegalText[]>([]);
   const [showStats, setShowStats] = useState(false);
-  const [autoSync, setAutoSync] = useLocalStorage<boolean>('auto_sync', true);
-  const [offlineMode, setOfflineMode] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
-  const [recentSearches, setRecentSearches] = useLocalStorage<string[]>('recent_searches', []);
+  const [autoSync, setAutoSync] = useState(true);
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [aiSuggestions] = useState<string[]>([]);
+  const [selectedTexts, setSelectedTexts] = useState<string[]>([]);
+  const [bulkMode, setBulkMode] = useState(false);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -156,19 +307,10 @@ const LegalTexts: React.FC = () => {
 
   const api = AlgerianLegalAPI.getInstance();
 
-  // Feature 1: Online/Offline Detection
+  // Online/Offline Detection
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      setOfflineMode(false);
-      if (autoSync) {
-        handleSync();
-      }
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      setOfflineMode(true);
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -177,24 +319,9 @@ const LegalTexts: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [autoSync]);
+  }, []);
 
-  // Feature 2: Auto-sync with background service
-  useEffect(() => {
-    if (autoSync && isOnline && api.needsSync()) {
-      handleSync();
-    }
-
-    const syncInterval = setInterval(() => {
-      if (autoSync && isOnline && api.needsSync()) {
-        handleSync();
-      }
-    }, 30 * 60 * 1000); // Check every 30 minutes
-
-    return () => clearInterval(syncInterval);
-  }, [autoSync, isOnline]);
-
-  // Feature 3: Enhanced sync functionality
+  // Sync functionality
   const handleSync = useCallback(async () => {
     if (!isOnline) return;
     
@@ -203,26 +330,11 @@ const LegalTexts: React.FC = () => {
     
     try {
       const latestLaws = await api.fetchLatestLaws();
-      
-      // Merge with existing texts, avoiding duplicates
       const existingIds = new Set(legalTexts.map(text => text.id));
       const newTexts = latestLaws.filter(text => !existingIds.has(text.id));
       
       if (newTexts.length > 0) {
         setLegalTexts(prev => [...newTexts, ...prev]);
-        
-        // Create notifications for new laws
-        const newNotifications: Notification[] = newTexts.map(text => ({
-          id: Date.now().toString() + Math.random(),
-          title: 'قانون جديد',
-          message: `تم إضافة: ${text.title}`,
-          type: 'new_law',
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          relatedLegalTextId: text.id
-        }));
-        
-        setNotifications(prev => [...newNotifications, ...prev]);
       }
       
       api.markSynced();
@@ -237,9 +349,9 @@ const LegalTexts: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [isOnline, legalTexts, setLegalTexts, setNotifications, setLastSyncTime]);
+  }, [isOnline, legalTexts, setLegalTexts, setLastSyncTime, api]);
 
-  // Feature 4: Smart search with suggestions
+  // Search functionality
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
     
@@ -258,28 +370,19 @@ const LegalTexts: React.FC = () => {
     }
   }, [legalTexts]);
 
-  // Feature 5: Advanced filtering and sorting
+  // Filter and sort texts
   const filteredTexts = useMemo(() => {
-    let filtered = legalTexts.filter(text => {
+    const filtered = legalTexts.filter(text => {
       const matchesSearch = searchTerm === '' || 
         text.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         text.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        text.articleNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         text.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesCategory = selectedCategory === 'all' || text.category === selectedCategory;
 
-      const matchesFilters = 
-        (!searchFilters.articleNumber || text.articleNumber?.includes(searchFilters.articleNumber)) &&
-        (!searchFilters.officialGazetteNumber || text.officialGazetteNumber?.includes(searchFilters.officialGazetteNumber)) &&
-        (!searchFilters.dateFrom || new Date(text.publishDate) >= new Date(searchFilters.dateFrom)) &&
-        (!searchFilters.dateTo || new Date(text.publishDate) <= new Date(searchFilters.dateTo)) &&
-        (!searchFilters.tags?.length || searchFilters.tags.some(tag => text.tags.includes(tag)));
-
-      return matchesSearch && matchesCategory && matchesFilters;
+      return matchesSearch && matchesCategory;
     });
 
-    // Sort results
     switch (sortBy) {
       case 'date':
         filtered.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime());
@@ -304,18 +407,18 @@ const LegalTexts: React.FC = () => {
     }
 
     return filtered;
-  }, [searchTerm, selectedCategory, searchFilters, legalTexts, sortBy]);
+  }, [searchTerm, selectedCategory, legalTexts, sortBy]);
 
-  // Feature 6: Reading history tracking
+  // Text viewing
   const handleViewText = useCallback((text: LegalText) => {
     setSelectedText(text);
     setReadingHistory(prev => {
       const updated = [text.id, ...prev.filter(id => id !== text.id)];
-      return updated.slice(0, 50); // Keep last 50 items
+      return updated.slice(0, 50);
     });
   }, [setReadingHistory]);
 
-  // Feature 7: Enhanced favorites and bookmarks
+  // Favorites and bookmarks
   const toggleFavorite = useCallback((textId: string) => {
     setFavorites(prev => 
       prev.includes(textId) 
@@ -332,7 +435,7 @@ const LegalTexts: React.FC = () => {
     );
   }, [setBookmarks]);
 
-  // Feature 8: Export functionality
+  // Export functionality
   const exportText = useCallback((text: LegalText, format: 'pdf' | 'docx' | 'txt') => {
     const content = `${text.title}\n${text.articleNumber || ''}\n\n${text.content}\n\nتاريخ النشر: ${formatDateLong(text.publishDate)}`;
     
@@ -345,12 +448,11 @@ const LegalTexts: React.FC = () => {
       link.click();
       URL.revokeObjectURL(url);
     } else {
-      // For PDF/DOCX, show message about future implementation
       alert(`تصدير ${format.toUpperCase()} سيتم تطويره قريباً`);
     }
   }, []);
 
-  // Feature 9: Share functionality
+  // Share functionality
   const shareText = useCallback((text: LegalText) => {
     const shareData = {
       title: text.title,
@@ -366,7 +468,7 @@ const LegalTexts: React.FC = () => {
     }
   }, []);
 
-  // Feature 10: Statistics calculation
+  // Statistics
   const stats = useMemo(() => {
     const totalTexts = legalTexts.length;
     const favoriteCount = favorites.length;
@@ -391,19 +493,8 @@ const LegalTexts: React.FC = () => {
     };
   }, [legalTexts, favorites, bookmarks]);
 
-  // Feature 11: Notification management
-  const markNotificationAsRead = useCallback((notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
-    );
-  }, [setNotifications]);
-
-  const clearAllNotifications = useCallback(() => {
-    setNotifications([]);
-  }, [setNotifications]);
-
-<<<<<<< HEAD
-  const handleImport = (importedData: LegalText[]) => {
+  // Import functionality
+  const handleImport = useCallback((importedData: LegalText[]) => {
     const existingIds = new Set(legalTexts.map(text => text.id));
     const newTexts = importedData.filter(text => !existingIds.has(text.id));
 
@@ -419,11 +510,9 @@ const LegalTexts: React.FC = () => {
       };
       setNotifications(prev => [newNotification, ...prev]);
     }
-  };
+  }, [legalTexts, setLegalTexts, setNotifications]);
 
-=======
->>>>>>> c6a0b11296b8accf34e0030393a3e93797657dcc
-  // Feature 12: Quick actions
+  // Quick actions
   const quickActions = [
     { id: 'recent', label: 'المضافة حديثاً', icon: Clock, count: stats.recentlyAdded },
     { id: 'favorites', label: 'المفضلة', icon: Star, count: favorites.length },
@@ -431,19 +520,72 @@ const LegalTexts: React.FC = () => {
     { id: 'history', label: 'المقروءة', icon: History, count: readingHistory.length }
   ];
 
-  // Feature 13: Advanced search modal
+  // Advanced search
   const handleAdvancedSearch = useCallback((filters: SearchFilters) => {
     setSearchFilters(filters);
     setShowAdvancedSearch(false);
   }, []);
 
-  // Feature 14: Text comparison
-  const handleCompareTexts = useCallback((texts: LegalText[]) => {
-    setComparisonTexts(texts);
-    setShowComparison(true);
+  // Voice search
+  const handleVoiceSearch = useCallback(() => {
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new window.webkitSpeechRecognition();
+      recognition.lang = 'ar-DZ';
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[0][0].transcript;
+        setSearchTerm(transcript);
+      };
+      recognition.start();
+    } else {
+      alert('البحث الصوتي غير مدعوم في هذا المتصفح');
+    }
   }, []);
 
-  // Feature 15: Keyboard shortcuts
+  // Notes handling
+  const handleNoteChange = useCallback((textId: string, note: string) => {
+    setPersonalNotes(prev => ({
+      ...prev,
+      [textId]: note
+    }));
+  }, [setPersonalNotes]);
+
+  // Quick filters
+  const quickFilters = [
+    { id: 'today', label: 'اليوم' },
+    { id: 'week', label: 'هذا الأسبوع' },
+    { id: 'month', label: 'هذا الشهر' }
+  ];
+
+  // Bulk operations
+  const handleBulkAction = useCallback((action: 'favorite' | 'bookmark' | 'export' | 'delete') => {
+    switch (action) {
+      case 'favorite':
+        setFavorites(prev => [...new Set([...prev, ...selectedTexts])]);
+        break;
+      case 'bookmark':
+        setBookmarks(prev => [...new Set([...prev, ...selectedTexts])]);
+        break;
+      case 'export': {
+        const textsToExport = legalTexts.filter(text => selectedTexts.includes(text.id));
+        const content = textsToExport.map(text => 
+          `${text.title}\n${text.articleNumber || ''}\n\n${text.content}\n\n---\n\n`
+        ).join('');
+        
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'selected-legal-texts.txt';
+        link.click();
+        URL.revokeObjectURL(url);
+        break;
+      }
+    }
+    setSelectedTexts([]);
+    setBulkMode(false);
+  }, [selectedTexts, legalTexts, setFavorites, setBookmarks]);
+
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey) {
@@ -467,81 +609,6 @@ const LegalTexts: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSync, showStats]);
-
-  // Feature 16: Voice search (placeholder)
-  const handleVoiceSearch = useCallback(() => {
-    if ('webkitSpeechRecognition' in window) {
-      const recognition = new (window as any).webkitSpeechRecognition();
-      recognition.lang = 'ar-DZ';
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setSearchTerm(transcript);
-      };
-      recognition.start();
-    } else {
-      alert('البحث الصوتي غير مدعوم في هذا المتصفح');
-    }
-  }, []);
-
-  // Feature 17: Auto-save notes
-  const handleNoteChange = useCallback((textId: string, note: string) => {
-    setPersonalNotes(prev => ({
-      ...prev,
-      [textId]: note
-    }));
-  }, [setPersonalNotes]);
-
-  // Feature 18: Quick filter buttons
-  const quickFilters = [
-    { id: 'today', label: 'اليوم', filter: () => new Date().toDateString() },
-    { id: 'week', label: 'هذا الأسبوع', filter: () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toDateString() },
-    { id: 'month', label: 'هذا الشهر', filter: () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toDateString() }
-  ];
-
-  // Feature 19: Bulk operations
-  const [selectedTexts, setSelectedTexts] = useState<string[]>([]);
-  const [bulkMode, setBulkMode] = useState(false);
-
-  const handleBulkAction = useCallback((action: 'favorite' | 'bookmark' | 'export' | 'delete') => {
-    switch (action) {
-      case 'favorite':
-        setFavorites(prev => [...new Set([...prev, ...selectedTexts])]);
-        break;
-      case 'bookmark':
-        setBookmarks(prev => [...new Set([...prev, ...selectedTexts])]);
-        break;
-      case 'export':
-        // Export selected texts
-        const textsToExport = legalTexts.filter(text => selectedTexts.includes(text.id));
-        const content = textsToExport.map(text => 
-          `${text.title}\n${text.articleNumber || ''}\n\n${text.content}\n\n---\n\n`
-        ).join('');
-        
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'selected-legal-texts.txt';
-        link.click();
-        URL.revokeObjectURL(url);
-        break;
-    }
-    setSelectedTexts([]);
-    setBulkMode(false);
-  }, [selectedTexts, legalTexts, setFavorites, setBookmarks]);
-
-  // Feature 20: AI-powered suggestions (placeholder)
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
-
-  const getAISuggestions = useCallback(async (text: LegalText) => {
-    // Placeholder for AI integration
-    const mockSuggestions = [
-      'قوانين ذات صلة بنفس الموضوع',
-      'تعديلات حديثة على هذا القانون',
-      'قضايا مشابهة في المحاكم'
-    ];
-    setAiSuggestions(mockSuggestions);
-  }, []);
 
   if (selectedText) {
     return (
@@ -692,7 +759,7 @@ const LegalTexts: React.FC = () => {
 
   return (
     <div className={`p-6 ${theme === 'dark' ? 'dark:bg-slate-900' : ''}`}>
-      {/* Header with enhanced features */}
+      {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -704,7 +771,6 @@ const LegalTexts: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Online/Offline Indicator */}
             <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
               isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>
@@ -712,7 +778,6 @@ const LegalTexts: React.FC = () => {
               {isOnline ? 'متصل' : 'غير متصل'}
             </div>
             
-            {/* Sync Status */}
             <button
               onClick={handleSync}
               disabled={isSyncing || !isOnline}
@@ -728,7 +793,6 @@ const LegalTexts: React.FC = () => {
                syncStatus === 'error' ? 'فشل التحديث' : 'تحديث'}
             </button>
 
-            {/* Notifications */}
             <div className="relative">
               <button className={`relative p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-800 text-blue-400' : 'bg-blue-100 text-blue-600'} hover:bg-blue-200`}>
                 <Bell size={20} />
@@ -740,14 +804,12 @@ const LegalTexts: React.FC = () => {
               </button>
             </div>
 
-            {/* Settings */}
             <button className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'} hover:bg-slate-200`}>
               <Settings size={20} />
             </button>
           </div>
         </div>
 
-        {/* Last sync info */}
         {lastSyncTime && (
           <div className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
             آخر تحديث: {formatDateTime(lastSyncTime)}
@@ -809,7 +871,7 @@ const LegalTexts: React.FC = () => {
         })}
       </div>
 
-      {/* Enhanced Search and Filters */} 
+      {/* Search and Filters */} 
       <div className={`rounded-lg shadow-md p-6 mb-6 ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'}`}>
         <div className="flex flex-col md:flex-row gap-4 mb-4">
           <div className="flex-1 relative">
@@ -831,7 +893,6 @@ const LegalTexts: React.FC = () => {
               </button>
             </div>
             
-            {/* Search Suggestions */}
             {searchSuggestions.length > 0 && (
               <div className={`absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 ${theme === 'dark' ? 'bg-slate-700 border-slate-600' : ''}`}>
                 {searchSuggestions.map((suggestion, index) => (
@@ -860,7 +921,7 @@ const LegalTexts: React.FC = () => {
             
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'title' | 'category' | 'relevance')}
               className={`px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-300'}`}
             >
               <option value="date">ترتيب بالتاريخ</option>
@@ -885,7 +946,6 @@ const LegalTexts: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Filters */}
         <div className="flex flex-wrap gap-2 mb-4">
           {quickFilters.map(filter => (
             <button
@@ -897,7 +957,6 @@ const LegalTexts: React.FC = () => {
           ))}
         </div>
 
-        {/* Common Tags */} 
         <div className="mt-4">
           <p className={`text-sm font-medium mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>الوسوم الشائعة:</p>
           <div className="flex flex-wrap gap-2">
@@ -915,12 +974,9 @@ const LegalTexts: React.FC = () => {
         </div>
       </div>
 
-<<<<<<< HEAD
       <ImportLegalTexts onImport={handleImport} />
 
-=======
->>>>>>> c6a0b11296b8accf34e0030393a3e93797657dcc
-      {/* Bulk Actions Bar */}
+      {/* Bulk Actions */}
       {bulkMode && selectedTexts.length > 0 && (
         <div className={`rounded-lg p-4 mb-6 ${theme === 'dark' ? 'bg-orange-900' : 'bg-orange-100'}`}>
           <div className="flex justify-between items-center">
@@ -957,7 +1013,7 @@ const LegalTexts: React.FC = () => {
         </div>
       )}
 
-      {/* Statistics Panel */}
+      {/* Statistics */}
       {showStats && (
         <div className={`rounded-lg shadow-md p-6 mb-6 ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'}`}>
           <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
@@ -985,7 +1041,6 @@ const LegalTexts: React.FC = () => {
         </div>
       )}
 
-      {/* Search History */}
       <SearchHistory onSearchSelect={setSearchTerm} />
 
       {/* Results */} 

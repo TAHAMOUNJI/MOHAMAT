@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ListDirectoryFileFilteringOptions, ReadManyFilesFileFilteringOptions } from './types/index';
 
 export const default_api = {

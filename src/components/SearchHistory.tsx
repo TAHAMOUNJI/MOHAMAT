@@ -23,10 +23,7 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onSearchSelect }) => {
     setSearchHistory([]);
   };
 
-  // Expose addToHistory function globally for other components to use
-  React.useEffect(() => {
-    (window as any).addToSearchHistory = addToHistory;
-  }, []);
+
 
   if (searchHistory.length === 0) return null;
 

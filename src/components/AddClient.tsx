@@ -5,7 +5,7 @@ import { parseDateFromInput } from '../utils/dateUtils';
 
 interface AddClientProps {
   onAddClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  onSaveAndAddCase?: (clientId: string) => void;
+  onSaveAndAddCase?: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => void;
 }
 
 const AddClient: React.FC<AddClientProps> = ({ onAddClient, onSaveAndAddCase }) => {
@@ -54,9 +54,7 @@ const AddClient: React.FC<AddClientProps> = ({ onAddClient, onSaveAndAddCase }) 
     onAddClient(clientData);
     
     if (saveAndAddCase && onSaveAndAddCase) {
-      // Generate a temporary ID for the new client
-      const tempId = Date.now().toString();
-      onSaveAndAddCase(tempId);
+      onSaveAndAddCase(clientData);
     }
     
     // Reset form
@@ -108,6 +106,10 @@ const AddClient: React.FC<AddClientProps> = ({ onAddClient, onSaveAndAddCase }) 
       }));
     }
   };
+
+  const handleSubmitAndAddCase = () => {
+    handleSubmit(new Event('submit') as React.FormEvent, true);
+  }
 
   return (
     <div className="p-6">
@@ -577,7 +579,7 @@ const AddClient: React.FC<AddClientProps> = ({ onAddClient, onSaveAndAddCase }) 
           </button>
           <button
             type="button"
-            onClick={(e) => handleSubmit(e as any, true)}
+            onClick={handleSubmitAndAddCase}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
           >
             حفظ + إضافة قضية
