@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { Moon, Sun, Trash2, Download, Upload } from 'lucide-react';
 import { Client, Case } from '../types';
 
